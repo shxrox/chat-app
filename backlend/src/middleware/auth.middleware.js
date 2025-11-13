@@ -1,28 +1,29 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 
-
 export const protectRouter = async (req, res, next) => {
-    try{
+    try {
         const token = req.cookies.jwt;
         if (!token) {
             return res.status(401).json({ message: "Not authorized, no token." });
         }
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if(!decoded){
+        if (!decoded) {
             return res.status(401).json({ message: "Not authorized, token failed." });
         }
-        const user = await User.findById(decoded.id).select('-password');
-        if(!user){
+
+        
+        const user = await User.findById(decoded.userId).select('-password');
+    
+        if (!user) {
             return res.status(401).json({ message: "Not authorized, user not found." });
         }
 
         req.user = user;
         next();
-    }catch(error){
+    } catch (error) {
         console.log("Error in protectRouter middleware:", error.message);
         res.status(401).json({ message: "Not authorized, token failed." });
-
     }
 };
