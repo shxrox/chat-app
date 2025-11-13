@@ -127,3 +127,12 @@ export const updateProfile = async (req, res) => {
         res.status(500).json({ message: "Server error. Please try again later." });
     }
 };
+
+export const checkAuth = (req, res) => {
+    try{
+        res.status(200).json({ user: req.user });
+    }catch(error){
+        console.log("Error in checkAuth:", error.message);
+        res.status(500).json({ message: "Server error. Please try again later." });
+    }
+}
