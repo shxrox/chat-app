@@ -1,8 +1,8 @@
-// This is your controller file (e.g., auth.controller.js)
+
 
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
-import { generateToken } from '../lib/utils.js'; // Assuming utils.js is in ../lib/
+import { generateToken } from '../lib/utils.js';
 
 export const signup = async (req, res) => {
     const { email, fullName, password } = req.body;
@@ -15,28 +15,14 @@ export const signup = async (req, res) => {
             return res.status(400).json({ message: "Password must be at least 6 characters long." });
         }
 
-        // You found the user and saved them in the 'existingUser' variable
+
         const existingUser = await User.findOne({ email });
 
-        // 
-        //================================================================
-        //  THE ERROR WAS HERE
-        //================================================================
-        //
-        //  if(user){ // <--- THIS WAS THE BUGGY LINE. You used a variable 'user' that doesn't exist (it's undefined).
-        //
-        //  BELOW IS THE CORRECTED LINE:
-        //  You must check the variable you actually used: 'existingUser'
-        //
-        if (existingUser) { // <--- THIS IS THE FIXED LINE
+
+        if (existingUser) {
             return res.status(400).json({ message: "User with this email already exists." });
         }
-        //================================================================
-        //  END OF FIX
-        //================================================================
-        //
 
-        // The rest of your code is already correct
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -66,11 +52,55 @@ export const signup = async (req, res) => {
     }
 };
 
-// These functions were in your file, so I'm leaving them unchanged
-export const login = (req, res) => {
-    res.send("Login route");
+
+export const login = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // 1. FIX: Check if data exists before processing
+        if (!email || !password) {
+            return res.status(400).json({ message: "Please provide both email and password." });
+        }
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid email or password." });
+        }
+
+        // 2. Safety Check: Ensure user has a password in DB (e.g. in case of Google Auth users)
+        if (!user.password) {
+             return res.status(400).json({ message: "Invalid email or password." });
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordCorrect) {
+            return res.status(400).json({ message: "Invalid email or password." });
+        }
+
+        generateToken(user._id, res);
+
+        res.status(200).json({
+            _id: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            profilepic: user.profilepic,
+        });
+
+    } catch (error) {
+        console.log("Error during login:", error.message);
+        res.status(500).json({ message: "Server error. Please try again later." });
+    }
 };
 
 export const logout = (req, res) => {
-    res.send("Logout route");
+    try {
+        res.cookie("jwt", "", {maxAge: 0})
+        res.status(200).json({ message: "Logged out successfully." });
+
+    } catch (error) {
+        console.log("Error during logout:", error.message);
+        res.status(500).json({ message: "Server error. Please try again later." });
+    }
 };
