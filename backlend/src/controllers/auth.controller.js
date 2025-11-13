@@ -3,6 +3,7 @@
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import { generateToken } from '../lib/utils.js';
+import cloudinary from '../lib/cloudinary.js';
 
 export const signup = async (req, res) => {
     const { email, fullName, password } = req.body;
@@ -52,7 +53,6 @@ export const signup = async (req, res) => {
     }
 };
 
-
 export const login = async (req, res) => {
     const { email, password } = req.body;
 
@@ -70,7 +70,7 @@ export const login = async (req, res) => {
 
         // 2. Safety Check: Ensure user has a password in DB (e.g. in case of Google Auth users)
         if (!user.password) {
-             return res.status(400).json({ message: "Invalid email or password." });
+            return res.status(400).json({ message: "Invalid email or password." });
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
@@ -96,11 +96,34 @@ export const login = async (req, res) => {
 
 export const logout = (req, res) => {
     try {
-        res.cookie("jwt", "", {maxAge: 0})
+        res.cookie("jwt", "", { maxAge: 0 })
         res.status(200).json({ message: "Logged out successfully." });
 
     } catch (error) {
         console.log("Error during logout:", error.message);
+        res.status(500).json({ message: "Server error. Please try again later." });
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    try {
+        const { profilepic } = req.body;
+        const userId = req.user._id;
+
+        if (!profilepic) {
+            return res.status(400).json({ message: "Profile picture URL is required." });
+        }
+
+        const uploadResponse = await cloudinary.uploader.upload(profilepic)
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { profilepic: uploadResponse.secure_url },
+            { new: true }
+        )
+
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        console.log("Error during profile update:", error.message);
         res.status(500).json({ message: "Server error. Please try again later." });
     }
 };
